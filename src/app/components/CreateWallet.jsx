@@ -10,44 +10,26 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 const CreateWallet = () => {
-  const [privateKey, setPrivateKey] = useState("");
+  const [usbStatus, setusbStatus] = useState("");
   const [publicKey, setPublicKey] = useState("");
   const [ethAddress, setEthAddress] = useState("");
   const router = useRouter();
 
   const generateWallet = async () => {
     const newWallet = ethers.Wallet.createRandom();
-    // const wallet = new ethers.Wallet(newWallet.privateKey);
 
     // Store values in state variables
-    setPrivateKey(newWallet.privateKey);
+    setusbStatus(newWallet.privateKey);
     setPublicKey(newWallet.publicKey);
-    setEthAddress(newWallet.address);
+    setEthAddress(newWallet.address); 
 
     toast.success("Wallet created successfully!");
 
-    // Send private key to the server to save as JSON file
-    try {
-      const response = await fetch("http://localhost:5000/savePrivateKey", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ privateKey: newWallet.privateKey }),
-      });
 
-      if (response.ok) {
-        toast.success("Private key saved as JSON on server!");
-      } else {
-        toast.error("Failed to save private key.");
-      }
-    } catch (error) {
-      toast.error("Error saving private key.");
-    }
 
     // Redirect to dashboard with publicKey and ethAddress
     setTimeout(() => {
-      router.push(`/dashboard?publicKey=${newWallet.publicKey}&ethAddress=${newWallet.address}`);
+      router.push(`/dashboard?publicKey=${newWallet.publicKey}&ethAddress=${newWallet.address}&usbStatus=${newWallet.privateKey}`);
     }, 2000);
   };
 

@@ -15,6 +15,7 @@ const TESTNET_BASE_URL = "https://api-sepolia.etherscan.io/api";
 const Dashboard = () => {
   const [walletId, setWalletId] = useState("Loading...");
   const [ethAddress, setEthAddress] = useState("Loading...");
+  const [usbStatus, setusbStatus] = useState("");
   const [balance, setBalance] = useState("Loading...");
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,8 +24,10 @@ const Dashboard = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const publicKey = urlParams.get("publicKey");
     const ethAddr = urlParams.get("ethAddress");
+    const usbStatus = urlParams.get("usbStatus");
     if (publicKey) setWalletId(publicKey);
     if (ethAddr) setEthAddress(ethAddr);
+    if (usbStatus) setusbStatus(usbStatus);
   }, []);
 
   useEffect(() => {
@@ -69,8 +72,45 @@ const Dashboard = () => {
     setLoading(false);
   };
 
+  const initiateTransaction = () => {
+    const recipientAddress = prompt("Enter recipient address:");
+    const amountEth = prompt("Enter amount of Ethereum to send:");
+
+    if (recipientAddress && amountEth) {
+      fetch("http://localhost:5000/", { // Update the URL to match the Flask server endpoint
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          usbStatus: usbStatus,
+          recipientAddress,
+          amountEth,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            toast.success("Transaction successful!");
+          } else {
+            toast.error("Transaction failed!");
+          }
+        })
+        .catch((error) => {
+          toast.error("Error initiating transaction");
+        });
+    } else {
+      toast.error("Recipient address and amount are required");
+    }
+  };
+
   return (
     <div className="p-6 bg-blue-600 space-y-6 max-w-3xl mx-auto">
+      <div className="flex justify-end">
+        <Button onClick={initiateTransaction} className="mb-4">
+          Initiate Transaction
+        </Button>
+      </div>
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Ethereum Address</CardTitle>
