@@ -8,6 +8,7 @@ import { Copy, ArrowUp, ArrowDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import UsbStats from '../components/UsbStats';
 
 const API_KEY = "IRI57XAY533YXUSDTU9J9TU6ZY9B4IWSRS";
 const TESTNET_BASE_URL = "https://api-sepolia.etherscan.io/api";
@@ -72,129 +73,169 @@ const Dashboard = () => {
     setLoading(false);
   };
 
-  const initiateTransaction = () => {
+  const initiateTransaction = async () => {
+    if (usbStatus !== "USB_STORED") {
+      toast.error("USB device not properly initialized");
+      return;
+    }
+
     const recipientAddress = prompt("Enter recipient address:");
     const amountEth = prompt("Enter amount of Ethereum to send:");
 
     if (recipientAddress && amountEth) {
-      fetch("http://localhost:5000/", { // Update the URL to match the Flask server endpoint
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          usbStatus: usbStatus,
-          recipientAddress,
-          amountEth,
-        }),
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.success) {
-            toast.success("Transaction successful!");
-          } else {
-            toast.error("Transaction failed!");
-          }
-        })
-        .catch((error) => {
-          toast.error("Error initiating transaction");
+      try {
+        const device = new USBDevice();
+        const connected = await device.connect();
+        if (!connected) {
+          toast.error("Failed to connect to USB device");
+          return;
+        }
+
+        // Send transaction details to USB device for signing
+        await device.writeToDevice(JSON.stringify({
+          to: recipientAddress,
+          value: ethers.utils.parseEther(amountEth)
+        }));
+
+        // Wait for signature from device
+        const signature = await device.readFromDevice();
+        if (!signature) {
+          toast.error("Failed to get signature from USB device");
+          return;
+        }
+
+        // Send signed transaction to backend
+        const response = await fetch("http://localhost:5000/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            signature,
+            recipientAddress,
+            amountEth,
+          }),
         });
+
+        const data = await response.json();
+        if (data.success) {
+          toast.success("Transaction successful!");
+        } else {
+          toast.error("Transaction failed!");
+        }
+
+        await device.disconnect();
+      } catch (error) {
+        toast.error("Error during transaction");
+        console.error(error);
+      }
     } else {
       toast.error("Recipient address and amount are required");
     }
   };
 
   return (
-    <div className="p-6 bg-blue-600 space-y-6 max-w-3xl mx-auto">
-      <div className="flex justify-end">
-        <Button onClick={initiateTransaction} className="mb-4">
-          Initiate Transaction
-        </Button>
-      </div>
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle>Ethereum Address</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-800 font-mono">{ethAddress || "Not Found"}</p>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen p-6 lg:p-8 bg-blue-600">
+      <div className="space-y-6 container mx-auto">
+        <div className="flex justify-end">
+          <Button onClick={initiateTransaction} className="mb-4">
+            Initiate Transaction
+          </Button>
+        </div>
+        
+        <div className="grid lg:grid-cols-3 gap-6">
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle>Ethereum Address</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-800 font-mono break-all">{ethAddress || "Not Found"}</p>
+            </CardContent>
+          </Card>
 
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle>Public Key Address</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-800 font-mono">{walletId || "Not Found"}</p>
-        </CardContent>
-      </Card>
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle>Public Key Address</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-800 font-mono break-all">{walletId || "Not Found"}</p>
+            </CardContent>
+          </Card>
 
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle>Account Balance</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold text-gray-800">{loading ? "Loading..." : `${balance} ETH`}</p>
-        </CardContent>
-      </Card>
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle>Account Balance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold text-gray-800">{loading ? "Loading..." : `${balance} ETH`}</p>
+            </CardContent>
+          </Card>
+        </div>
 
-      <div className="grid grid-cols-2 gap-4">
+        <div className="grid lg:grid-cols-2 gap-6">
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ArrowUp className="text-red-500" /> Sent
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-lg font-semibold text-gray-700">{transactions.filter((tx) => tx.from.toLowerCase() === walletId.toLowerCase()).length} Transactions</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ArrowDown className="text-green-500" /> Received
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-lg font-semibold text-gray-700">{transactions.filter((tx) => tx.to.toLowerCase() === walletId.toLowerCase()).length} Transactions</p>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card className="shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ArrowUp className="text-red-500" /> Sent
-            </CardTitle>
+            <CardTitle>Previous Transactions</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-lg font-semibold text-gray-700">{transactions.filter((tx) => tx.from.toLowerCase() === walletId.toLowerCase()).length} Transactions</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ArrowDown className="text-green-500" /> Received
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-lg font-semibold text-gray-700">{transactions.filter((tx) => tx.to.toLowerCase() === walletId.toLowerCase()).length} Transactions</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle>Previous Transactions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Hash</TableHead>
-                <TableHead>From</TableHead>
-                <TableHead>To</TableHead>
-                <TableHead>Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan="4" className="text-center">{loading ? "Loading..." : "No Transactions Found"}</TableCell>
-                </TableRow>
-              ) : (
-                transactions.map((tx, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="truncate w-[120px]">{tx.hash.slice(0, 10)}...</TableCell>
-                    <TableCell className="truncate w-[120px]">{tx.from.slice(0, 10)}...</TableCell>
-                    <TableCell className="truncate w-[120px]">{tx.to.slice(0, 10)}...</TableCell>
-                    <TableCell>{(tx.value / 1e18).toFixed(4)} ETH</TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-1/4">Hash</TableHead>
+                    <TableHead className="w-1/4">From</TableHead>
+                    <TableHead className="w-1/4">To</TableHead>
+                    <TableHead className="w-1/4">Amount</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {transactions.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan="4" className="text-center">{loading ? "Loading..." : "No Transactions Found"}</TableCell>
+                    </TableRow>
+                  ) : (
+                    transactions.map((tx, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="truncate max-w-[200px]">{tx.hash.slice(0, 10)}...</TableCell>
+                        <TableCell className="truncate max-w-[200px]">{tx.from.slice(0, 10)}...</TableCell>
+                        <TableCell className="truncate max-w-[200px]">{tx.to.slice(0, 10)}...</TableCell>
+                        <TableCell>{(tx.value / 1e18).toFixed(4)} ETH</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-6">
+          <UsbStats />
+        </div>
+      </div>
     </div>
   );
 };

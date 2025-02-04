@@ -7,6 +7,9 @@ import Link from 'next/link';
 import { Button } from "@/components/ui/button"
 import { ToastContainer, toast } from 'react-toastify'; // Ensure toast is imported
 import 'react-toastify/dist/ReactToastify.css';
+import { USBDevice } from "@/utils/usb";
+import { ethers } from "ethers";
+import { useRouter } from "next/navigation";
 
 import {
   Dialog,
@@ -30,10 +33,39 @@ const Header = () => {
   };
 
   const [isSignedUp, setIsSignedUp] = useState(false);
+  const [usbDevice, setUsbDevice] = useState(null);
+  const router = useRouter();
 
-  const handleClick = () => {
-    setIsSignedUp(true);
-    toast.success('Fingerprint Registered!');
+  const handleClick = async () => {
+    try {
+      // Connect USB device first
+      const device = new USBDevice();
+      const connected = await device.connect();
+      if (!connected) {
+        toast.error("Failed to connect USB device");
+        return;
+      }
+      setUsbDevice(device);
+
+      // Generate new wallet
+      const newWallet = ethers.Wallet.createRandom();
+      const success = await device.writeToDevice(newWallet.privateKey);
+      if (!success) {
+        toast.error("Failed to write to USB device");
+        return;
+      }
+
+      setIsSignedUp(true);
+      toast.success('Fingerprint and Wallet Registered!');
+
+      // Redirect to dashboard after short delay
+      setTimeout(() => {
+        router.push(`/dashboard?publicKey=${newWallet.publicKey}&ethAddress=${newWallet.address}&usbStatus=USB_STORED`);
+      }, 2000);
+    } catch (error) {
+      console.error(error);
+      toast.error("Error during registration");
+    }
   };
 
   return (
@@ -72,45 +104,66 @@ const Header = () => {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Register Your Finger Print</DialogTitle>
-         
+          <DialogTitle>Create Your Wall-ID</DialogTitle>
+          <DialogDescription>
+            Complete these steps to create your secure digital identity
+          </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4 justify-center">
-            <img src="fingerprint.gif" className="col-span-4" alt="" />
-          
-          </div>
         
-        </div>
-        <DialogDescription className={isSignedUp ? 'text-green-500' : 'text-red-500'}>
-          
-        {isSignedUp ? 'Fingerprint Registered' : 'Awaiting Your Finger Print......'}
-      </DialogDescription>
-      <DialogFooter>
-        {isSignedUp ? (
-          <Link href="/login"> {/* Link to the login page */}
-            <a className="btn btn-active btn-ghost">Log In</a>
-          </Link>
-        ) : (
-          <button
-            onClick={handleClick}
-            className="btn btn-active btn-ghost"
-          >
-            Sign Up
-          </button>
-        )}
-      </DialogFooter>
+        <div className="grid gap-4 py-4">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                1
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold">Connect USB Device</h4>
+                <p className="text-sm text-gray-500">Insert your Wall-ID USB device</p>
+              </div>
+            </div>
 
-      {/* Conditionally render "Already have an account?" text */}
-      {!isSignedUp && (
-        <div className="text-blue-500">
-          <Link href="/login" className="hover:no-underline">
-             <button>Already have an account? Login!</button> 
-          </Link>
-        </div>
-      )}
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                2
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold">Register Fingerprint</h4>
+                <p className="text-sm text-gray-500">Place your finger on the sensor</p>
+              </div>
+            </div>
 
-      <ToastContainer />
+            <div className="flex justify-center py-4">
+              <img src="fingerprint.gif" className="w-32 h-32" alt="Fingerprint Scanner" />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <DialogDescription className={isSignedUp ? 'text-green-500' : 'text-gray-500'}>
+              {isSignedUp 
+                ? '✓ Registration Complete!' 
+                : 'Follow the steps above to complete registration'}
+            </DialogDescription>
+          </div>
+        </div>
+
+        <DialogFooter className="flex flex-col gap-2">
+          {isSignedUp ? (
+            <Button onClick={() => router.push('/dashboard')} className="w-full">
+              Go to Dashboard
+            </Button>
+          ) : (
+            <>
+              <Button onClick={handleClick} className="w-full">
+                Register Now
+              </Button>
+              <div className="text-sm text-center text-gray-500">
+                <Link href="/login" className="hover:text-blue-500">
+                  Already have an account? Log in
+                </Link>
+              </div>
+            </>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
             
@@ -149,41 +202,66 @@ const Header = () => {
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Register Your Finger Print</DialogTitle>
+                  <DialogTitle>Create Your Wall-ID</DialogTitle>
+                  <DialogDescription>
+                    Complete these steps to create your secure digital identity
+                  </DialogDescription>
                 </DialogHeader>
+                
                 <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4 justify-center">
-                    <img src="fingerprint.gif" className="col-span-4" alt="" />
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        1
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold">Connect USB Device</h4>
+                        <p className="text-sm text-gray-500">Insert your Wall-ID USB device</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        2
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold">Register Fingerprint</h4>
+                        <p className="text-sm text-gray-500">Place your finger on the sensor</p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-center py-4">
+                      <img src="fingerprint.gif" className="w-32 h-32" alt="Fingerprint Scanner" />
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <DialogDescription className={isSignedUp ? 'text-green-500' : 'text-gray-500'}>
+                      {isSignedUp 
+                        ? '✓ Registration Complete!' 
+                        : 'Follow the steps above to complete registration'}
+                    </DialogDescription>
                   </div>
                 </div>
-                <DialogDescription className={isSignedUp ? 'text-green-500' : 'text-red-500'}>
-                  {isSignedUp ? 'Fingerprint Registered' : 'Awaiting Your Finger Print......'}
-                </DialogDescription>
-                <DialogFooter>
+
+                <DialogFooter className="flex flex-col gap-2">
                   {isSignedUp ? (
-                    <Link href="/login"> {/* Link to the login page */}
-                      <a className="btn btn-active btn-ghost">Log In</a>
-                    </Link>
+                    <Button onClick={() => router.push('/dashboard')} className="w-full">
+                      Go to Dashboard
+                    </Button>
                   ) : (
-                    <button
-                      onClick={handleClick}
-                      className="btn btn-active btn-ghost"
-                    >
-                      Sign Up
-                    </button>
+                    <>
+                      <Button onClick={handleClick} className="w-full">
+                        Register Now
+                      </Button>
+                      <div className="text-sm text-center text-gray-500">
+                        <Link href="/login" className="hover:text-blue-500">
+                          Already have an account? Log in
+                        </Link>
+                      </div>
+                    </>
                   )}
                 </DialogFooter>
-
-                {/* Conditionally render "Already have an account?" text */}
-                {!isSignedUp && (
-                  <div className="text-blue-500">
-                    <Link href="/login" className="hover:no-underline">
-                       <button>Already have an account? Login!</button> 
-                    </Link>
-                  </div>
-                )}
-
-                <ToastContainer />
               </DialogContent>
             </Dialog>
             </span>
