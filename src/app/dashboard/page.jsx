@@ -20,6 +20,9 @@ const Dashboard = () => {
   const [balance, setBalance] = useState("Loading...");
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalSent, setTotalSent] = useState(0);
+  const [totalReceived, setTotalReceived] = useState(0);
+  const [recentTransactions, setRecentTransactions] = useState([]);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -63,7 +66,16 @@ const Dashboard = () => {
         `${TESTNET_BASE_URL}?module=account&action=txlist&address=${ethAddress}&startblock=0&endblock=99999999&sort=desc&apikey=${API_KEY}`
       );
       if (response.data.status === "1") {
-        setTransactions(response.data.result.slice(0, 5));
+        const allTxs = response.data.result;
+        setRecentTransactions(allTxs.slice(0, 5)); // Keep recent 5 for display
+        
+        // Calculate totals
+        const sent = allTxs.filter(tx => tx.from.toLowerCase() === ethAddress.toLowerCase()).length;
+        const received = allTxs.filter(tx => tx.to.toLowerCase() === ethAddress.toLowerCase()).length;
+        
+        setTotalSent(sent);
+        setTotalReceived(received);
+        setTransactions(allTxs);
       } else {
         toast.error("No transactions found");
       }
@@ -74,10 +86,10 @@ const Dashboard = () => {
   };
 
   const initiateTransaction = async () => {
-    if (usbStatus !== "USB_STORED") {
-      toast.error("USB device not properly initialized");
-      return;
-    }
+    // if (usbStatus !== "USB_STORED") {
+    //   toast.error("USB device not properly initialized");
+    //   return;
+    // }
 
     const recipientAddress = prompt("Enter recipient address:");
     const amountEth = prompt("Enter amount of Ethereum to send:");
@@ -176,22 +188,22 @@ const Dashboard = () => {
           <Card className="shadow-md">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ArrowUp className="text-red-500" /> Sent
+                <ArrowUp className="text-red-500" /> Total Sent
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-lg font-semibold text-gray-700">{transactions.filter((tx) => tx.from.toLowerCase() === walletId.toLowerCase()).length} Transactions</p>
+              <p className="text-lg font-semibold text-gray-700">{loading ? "Loading..." : `${totalSent} Transactions`}</p>
             </CardContent>
           </Card>
 
           <Card className="shadow-md">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ArrowDown className="text-green-500" /> Received
+                <ArrowDown className="text-green-500" /> Total Received
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-lg font-semibold text-gray-700">{transactions.filter((tx) => tx.to.toLowerCase() === walletId.toLowerCase()).length} Transactions</p>
+              <p className="text-lg font-semibold text-gray-700">{loading ? "Loading..." : `${totalReceived} Transactions`}</p>
             </CardContent>
           </Card>
         </div>
@@ -212,12 +224,12 @@ const Dashboard = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.length === 0 ? (
+                  {recentTransactions.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan="4" className="text-center">{loading ? "Loading..." : "No Transactions Found"}</TableCell>
                     </TableRow>
                   ) : (
-                    transactions.map((tx, index) => (
+                    recentTransactions.map((tx, index) => (
                       <TableRow key={index}>
                         <TableCell className="truncate max-w-[200px]">{tx.hash.slice(0, 10)}...</TableCell>
                         <TableCell className="truncate max-w-[200px]">{tx.from.slice(0, 10)}...</TableCell>
