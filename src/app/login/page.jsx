@@ -49,7 +49,7 @@ const Login = () => {
             </div>
           ) : (
             <div>
-              <Link href="/dashboard">
+              <Link href="/createwallet">
                 <button className="w-full py-2 bg-[#34d399] text-white rounded-md hover:bg-green-600 transition duration-200">
                   Go to Dashboard
                 </button>
