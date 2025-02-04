@@ -63,10 +63,8 @@ const Photo = () => {
                 hover:bg-gradient-to-l hover:from-blue-700 hover:to-blue-500 
                 before:absolute before:inset-0 before:bg-gradient-to-r before:from-blue-500 before:to-blue-700 before:border-2 before:rounded-lg before:content-['']"
             >
-              <span className="relative z-10">
-                <Link href="/dashboard" className="text-white hover:no-underline">
+              <span className="relative z-10 text-white hover:no-underline">
                   Get Started
-                </Link>
               </span>
 
 
