@@ -54,12 +54,12 @@ const Header = () => {
               Wall-ID W1
             </span>
             <span className="cursor-pointer hover:text-gray-300">
-              <Link  href="/dashboard" className="text-white hover:no-underline">
+              <Link  href="/dashboard" className="text-white hover:no-underline hover:text-gray-300">
               Research
               </Link>
               </span>
               <span className="cursor-pointer hover:text-gray-300">
-            <Link  href="/newsroom" className="text-white hover:no-underline">
+            <Link  href="/newsroom" className="text-white hover:no-underline hover:text-gray-300">
             Newsroom
               </Link>
               </span>
