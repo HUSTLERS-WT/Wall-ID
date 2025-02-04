@@ -50,7 +50,6 @@ const Header = () => {
           <div className="hidden sm:flex justify-evenly navbar ubuntu-bold text-white items-center space-x-6">
             <span
               className="cursor-pointer hover:text-gray-300"
-              onClick={handleWallIdClick}
             >
               Wall-ID W1
             </span>
