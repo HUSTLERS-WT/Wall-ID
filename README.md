@@ -1,5 +1,9 @@
 # Wall-ID – The Next-Gen Security Solution
 
+## Pitch-deck
+
+[https://www.canva.com/design/DAGeBvgvUys/Zs3Ll_Lj83NXG1DElW62Vw/edit](https://www.canva.com/design/DAGeBvgvUys/Zs3Ll_Lj83NXG1DElW62Vw/edit)
+
 ## Technology Used
 
 -
